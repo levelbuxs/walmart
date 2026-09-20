@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reviewer Dashboard</title>
+<meta name="description" content="Browse, search, and filter free reviewer items by category and keyword.">
+<style>
+  :root {
+    --primary: #0071dc;
+    --primary-dark: #005bb5;
+    --bg-body: #0f172a;
+    --card-bg: #1e293b;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --terminal-green: #10b981;
+    --terminal-red: #f43f5e;
+    --terminal-bg: #020617;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    padding: 16px;
+    min-height: 100vh;
+  }
+  header { max-width: 1400px; margin: 0 auto 20px; text-align: center; }
+  h1 { font-size: 2rem; font-weight: 800; color: #38bdf8; letter-spacing: -0.5px; }
+
+  .status-banner {
+    max-width: 1400px; margin: 0 auto 20px; padding: 12px 18px;
+    background: var(--terminal-bg); border: 1px solid var(--border-color); border-radius: var(--radius);
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+    font-family: "Courier New", Courier, monospace; font-size: 13px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .status-indicator { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .status-indicator.fresh { color: var(--terminal-green); }
+  .status-indicator.fresh .status-dot { background: var(--terminal-green); box-shadow: 0 0 10px var(--terminal-green); animation: pulse 1.8s infinite; }
+  .status-indicator.stale { color: var(--terminal-red); }
+  .status-indicator.stale .status-dot { background: var(--terminal-red); box-shadow: 0 0 10px var(--terminal-red); animation: pulse 1s infinite; }
+
+  .controls-panel {
+    background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color); border-radius: var(--radius);
+    padding: 16px; max-width: 1400px; margin: 0 auto 20px; position: sticky; top: 8px; z-index: 100;
+  }
+  .filter-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px; align-items: center;
+  }
+  .filter-grid input, .filter-grid select, .filter-grid button {
+    padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px;
+    font-size: 13px; background: #0f172a; color: var(--text-main); outline: none;
+    transition: all 0.2s ease; width: 100%;
+  }
+  .filter-grid input[type="text"] { grid-column: span 2; }
+  @media (max-width: 768px) { .filter-grid input[type="text"] { grid-column: span 1; } }
+  .filter-grid select:focus, .filter-grid input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,113,220,0.25); }
+  .btn-terminal {
+    background: #020617; color: #38bdf8; border: 1px solid #0284c7;
+    font-family: monospace; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-terminal:hover { background: #0284c7; color: white; box-shadow: 0 0 12px rgba(2,132,199,0.5); }
+
+  .active-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 6px; background: rgba(56,189,248,0.12);
+    border: 1px solid rgba(56,189,248,0.4); color: #7dd3fc; font-size: 12px; font-weight: 600;
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .filter-chip button { background: none; border: none; color: #7dd3fc; cursor: pointer; font-weight: 800; padding: 0; font-size: 13px; }
+
+  .file-fallback-card {
+    max-width: 600px; margin: 40px auto; background: var(--card-bg);
+    border: 2px dashed var(--border-color); border-radius: var(--radius);
+    padding: 32px; text-align: center; display: none;
+  }
+  .file-fallback-card.active { display: block; animation: cardAppear 0.3s ease-out; }
+  .file-fallback-card input[type="file"] { display: none; }
+  .fallback-row { display: flex; gap: 8px; margin-top: 10px; }
+  .fallback-row input[type="text"] { flex: 1; padding: 8px; font-size: 12px; background: #0f172a; border: 1px solid var(--border-color); color: white; border-radius: 6px; }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px; max-width: 1400px; margin: 0 auto;
+  }
+  .card {
+    background: var(--card-bg); border-radius: var(--radius); border: 1px solid var(--border-color);
+    overflow: hidden; display: flex; flex-direction: column; position: relative;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+  .card.out-of-stock { opacity: 0.5; filter: grayscale(0.85); }
+  .card-badge-bar { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; z-index: 10; }
+  .item-badge { background: rgba(0,0,0,0.75); color: white; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+  .stock-badge { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+  .stock-badge.instock { background: #166534; color: #4ade80; }
+  .stock-badge.outofstock { background: #991b1b; color: #fca5a5; }
+  .card img { width: 100%; height: 170px; object-fit: contain; background: #fff; padding: 12px; transition: transform 0.3s ease; }
+  .card:hover img { transform: scale(1.04); }
+  .card-body { padding: 14px; display: flex; flex-direction: column; flex-grow: 1; gap: 4px; }
+  .cat-tag { font-size: 10px; font-weight: 700; color: #7dd3fc; text-transform: uppercase; letter-spacing: 0.03em; }
+  .title { font-size: 13px; font-weight: 600; line-height: 1.4; height: 36px; overflow: hidden; }
+  .value { font-size: 16px; font-weight: 800; color: var(--success); }
+  .btn-link {
+    display: block; text-align: center; background: var(--primary); color: white;
+    text-decoration: none; padding: 8px; border-radius: 6px; font-weight: 600; font-size: 12px; margin-top: auto;
+    transition: background 0.2s ease;
+  }
+  .btn-link:hover { background: var(--primary-dark); }
+
+  .section-divider { max-width: 1400px; margin: 30px auto; border: 0; height: 1px; background: var(--border-color); position: relative; text-align: center; }
+  .section-divider::after { content: attr(data-label); position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--bg-body); padding: 0 14px; font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; }
+
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2,6,23,0.85);
+    backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 1000;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+  }
+  .modal-overlay.active { opacity: 1; pointer-events: auto; }
+  .terminal-card { background: #020617; border: 1px solid #0284c7; border-radius: var(--radius); width: 90%; max-width: 650px; padding: 24px; box-shadow: 0 0 30px rgba(2,132,199,0.2); font-family: monospace; color: #cbd5e1; max-height: 85vh; overflow-y: auto; }
+  .terminal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 12px; margin-bottom: 16px; }
+  .terminal-header button { background: none; border: none; color: #94a3b8; font-weight: bold; cursor: pointer; font-size: 16px; }
+
+  #loading-trigger { text-align: center; padding: 32px; font-weight: 700; color: var(--text-muted); }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  @keyframes cardAppear { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Reviewer Dashboard</h1>
+</header>
+
+<div class="status-banner" id="statusBanner">
+  <div class="status-indicator" id="statusIndicator">
+    <span class="status-dot"></span>
+    <span id="statusText">CHECKING DATASET FRESHNESS...</span>
+  </div>
+  <div id="timestampVal" style="color: var(--text-muted);">Timestamp: ------</div>
+</div>
+
+<div class="controls-panel">
+  <div class="filter-grid">
+    <input type="text" id="searchInput" placeholder="Search catalog...">
+    <select id="categorySelect">
+      <option value="ALL">All Categories</option>
+    </select>
+    <select id="keywordSelect">
+      <option value="ALL">All Keywords</option>
+    </select>
+    <select id="sortSelect">
+      <option value="default">Default Scraped Order</option>
+      <option value="price-high">Value High to Low</option>
+      <option value="price-low">Value Low to High</option>
+    </select>
+    <select id="stockSelect">
+      <option value="ALL">All Items</option>
+      <option value="INSTOCK">In Stock Only</option>
+    </select>
+    <button class="btn-terminal" id="openScraperBtn">SCRAPE GUIDE</button>
+    <button class="btn-terminal" id="manualUploadBtn">LOAD JSON</button>
+  </div>
+  <div class="active-filters" id="activeFilters"></div>
+</div>
+
+<div class="file-fallback-card" id="fileFallbackCard">
+  <h3 style="margin-bottom:12px;">Load Product Data</h3>
+  <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">
+    Load your keyword-run <code>products.json</code>, then optionally merge in a second file
+    (e.g. your original "browse all" scrape) — items are deduped automatically.
+  </p>
+  <input type="file" id="fileInput" accept=".json">
+  <button class="btn-terminal" style="padding:10px 20px; margin-bottom:10px;" onclick="document.getElementById('fileInput').click()">CHOOSE PRIMARY JSON FILE</button>
+  <br>
+  <input type="file" id="mergeFileInput" accept=".json">
+  <button class="btn-terminal" style="padding:8px 16px; margin-bottom:16px; opacity:0.85;" onclick="document.getElementById('mergeFileInput').click()">+ MERGE ANOTHER JSON FILE</button>
+  <div class="fallback-row">
+    <input type="text" id="remoteUrlInput" placeholder="https://example.com/products.json">
+    <button class="btn-terminal" id="fetchUrlBtn">FETCH URL</button>
+  </div>
+</div>
+
+<div class="grid" id="searchResultsGrid"></div>
+<hr class="section-divider" id="searchDivider" data-label="Remaining Catalog Items" style="display:none;">
+<div class="grid" id="productGrid"></div>
+<div id="loading-trigger" style="text-align:center; padding:32px; font-weight:700; color:var(--text-muted);"></div>
+
+<div class="modal-overlay" id="scraperModal">
+  <div class="terminal-card">
+    <div class="terminal-header">
+      <span style="color:#38bdf8; font-weight:bold;">SCRAPERGUIDE.EXE</span>
+      <button id="closeModalBtn">X</button>
+    </div>
+    <p style="font-size:12px;">This dashboard reads whatever JSON file(s) you load below. Each product should
+      include: <code>title</code>, <code>value</code>, <code>image</code>, <code>url</code>, and either
+      <code>searchKeyword</code> or <code>matchedKeywords</code> (an array) so it can be grouped into categories.</p>
+    <p style="font-size:12px; margin-top:16px;">Load your primary keyword-run file first, then use
+      "MERGE ANOTHER JSON FILE" to combine in a second dataset (like a full-catalog "browse all" scrape) —
+      duplicates are removed automatically by item ID or URL.</p>
+  </div>
+</div>
+
+<script>
+  // ---- Category map: broad "vague" buckets -> specific scrape keywords ----
+  const CATEGORY_MAP = {
+    "Electronics": ["led","usb","usb c","tv","phone","bluetooth","2.4ghz","wifi","laptop","xbox","camera","keyboard","controller","mouse","headphones","earbuds","charger","power bank","tablet","smartwatch","monitor","webcam","microphone","router","extension cord","surge protector","hdmi cable","adapter","flashlight","lantern","night light","string lights","projector","drone","action camera","tripod","vr headset","game console","controller charger","remote control","smart plug","smart bulb","security camera","doorbell camera","baby monitor","phone case","screen protector","laptop bag","gaming mouse pad","desk lamp","printer","printer ink","label maker","3 pro","4 pro","computer","watch","laser","fitness tracker","gaming chair","speakers","light","electronics"],
+    "Clothing & Accessories": ["shoes","shirt","pants","lingerie","boots","sneakers","hats","sweater","hoodie","socks","underwear","bra","swimsuit","sandals","slippers","sunglasses","jewelry","wallet","belt","scarf","gloves","beanie","jacket","raincoat","umbrella","clothes"],
+    "Home & Kitchen": ["bed","bedding","pillow","cups","plates","kitchen","cutting board","knife set","cookware","bakeware","dinnerware","food storage","water bottle","lunch box","thermos","air fryer","blender","coffee maker","toaster","microwave","slow cooker","instant pot","curtains","blankets","towels","bedsheets","comforter","mattress topper","throw blanket","area rug","wall art","mirror","clock","candles","diffuser","air freshener","shower curtain","bath mat","decor","tapestry","posters","basket","laundry basket","storage bins","organizer","hangers","closet organizer","vacuum","broom","mop","cleaning","windows","plant pot","artificial plants","large appliance"],
+    "Toys & Games": ["toys","cat toys","dog toys","board games","puzzle","action figure","doll","building blocks","lego","rc car","art supplies","coloring book","ride on"],
+    "Baby & Kids": ["baby","stroller","car seat","diapers","baby formula","backpack for kids"],
+    "Pets": ["cat","cat litter","dog leash","pet bed","fish tank","bird cage"],
+    "Beauty & Personal Care": ["beauty","makeup","skincare","shampoo","conditioner","body wash","perfume","cologne","hair dryer","hair straightener","electric razor","toothbrush","dental care","vitamins","supplements","first aid kit","face mask","nails","hygiene","massage"],
+    "Fitness & Outdoor": ["yoga mat","dumbbells","resistance bands","exercise bike","treadmill","tent","sleeping bag","backpack","luggage","travel bag","cooler","grill","patio furniture","lawn mower","garden hose","extension ladder","heavy duty","bike"],
+    "Tools & Hardware": ["tool kit","screwdriver set","drill","tape measure","flashlight batteries"],
+    "Office & Furniture": ["office supplies","office chair","desk","bookshelf","storage cart","step stool","supplies","accessories","furniture"]
+  };
+
+  const KEYWORD_TO_CATEGORY = {};
+  Object.entries(CATEGORY_MAP).forEach(([cat, kws]) => {
+    kws.forEach(kw => { KEYWORD_TO_CATEGORY[kw] = cat; });
+  });
+
+  let rawDataset = [];
+  let searchMatches = [];
+  let remainingCatalog = [];
+  let renderingIndex = 0;
+  const BATCH_SIZE = 50;
+
+  function getItemKeywords(item) {
+    if (item.matchedKeywords && item.matchedKeywords.length) return item.matchedKeywords;
+    if (item.searchKeyword) return [item.searchKeyword];
+    return [];
+  }
+
+  function getItemCategories(item) {
+    const kws = getItemKeywords(item);
+    const cats = new Set();
+    kws.forEach(kw => { if (KEYWORD_TO_CATEGORY[kw]) cats.add(KEYWORD_TO_CATEGORY[kw]); });
+    if (cats.size === 0) cats.add('Uncategorized');
+    return Array.from(cats);
+  }
+
+  function dedupKey(item) {
+    return item.itemId || item.url || item.title;
+  }
+
+  function mergeItemsIntoDataset(items, sourceLabel) {
+    let added = 0, merged = 0;
+    items.forEach(item => {
+      const key = dedupKey(item);
+      if (!key) return;
+      const existing = rawDataset.find(d => dedupKey(d) === key);
+      if (existing) {
+        const newKws = getItemKeywords(item);
+        const existingKws = existing.matchedKeywords || getItemKeywords(existing);
+        const combined = Array.from(new Set([...existingKws, ...newKws]));
+        existing.matchedKeywords = combined;
+        if (!existing.sources) existing.sources = [existing._source || 'unknown'];
+        if (sourceLabel && !existing.sources.includes(sourceLabel)) existing.sources.push(sourceLabel);
+        merged++;
+      } else {
+        item._source = sourceLabel || 'primary';
+        item.sources = [item._source];
+        item.numericValue = typeof item.value === 'number' ? item.value : 0.0;
+        rawDataset.push(item);
+        added++;
+      }
+    });
+    return { added, merged };
+  }
+
+  async function initializeDataset() {
+    try {
+      const response = await fetch('products.json');
+      if (!response.ok) throw new Error('File missing');
+      const json = await response.json();
+      parseLoadedJSON(json, 'primary');
+    } catch (err) {
+      document.getElementById('fileFallbackCard').classList.add('active');
+      document.getElementById('loading-trigger').innerText = 'Awaiting product catalog import...';
+    }
+  }
+
+  function evaluateFreshness(isoTimestamp) {
+    const indicator = document.getElementById('statusIndicator');
+    const text = document.getElementById('statusText');
+    const timeVal = document.getElementById('timestampVal');
+    if (!isoTimestamp) {
+      indicator.className = 'status-indicator stale';
+      text.innerText = 'TIMESTAMP UNKNOWN - UPDATE RECOMMENDED';
+      return;
+    }
+    const generatedTime = new Date(isoTimestamp);
+    const now = new Date();
+    const diffHours = Math.abs(now - generatedTime) / 36e5;
+    timeVal.innerText = 'Last Scraped: ' + generatedTime.toLocaleString();
+    if (diffHours < 24) {
+      indicator.className = 'status-indicator fresh';
+      text.innerText = 'CATALOG UP TO DATE (< 24 HRS)';
+    } else {
+      indicator.className = 'status-indicator stale';
+      text.innerText = 'UPDATE RECOMMENDED (> 24 HRS OLD)';
+    }
+  }
+
+  function parseLoadedJSON(data, sourceLabel) {
+    document.getElementById('fileFallbackCard').classList.remove('active');
+    let items = [];
+    let generatedAt = null;
+
+    if (data.metadata) {
+      generatedAt = data.metadata.generatedAt;
+      items = data.products || [];
+    } else if (Array.isArray(data)) {
+      items = data;
+    }
+
+    const { added, merged } = mergeItemsIntoDataset(items, sourceLabel);
+    if (sourceLabel === 'primary') evaluateFreshness(generatedAt);
+
+    populateCategoryFilter();
+    populateKeywordFilter();
+    applyFilters();
+
+    console.log(`[Load] source="${sourceLabel}": ${added} new items added, ${merged} merged into existing items.`);
+  }
+
+  function populateCategoryFilter() {
+    const select = document.getElementById('categorySelect');
+    const currentVal = select.value;
+    select.innerHTML = '<option value="ALL">All Categories</option>';
+    const cats = new Set();
+    rawDataset.forEach(item => getItemCategories(item).forEach(c => cats.add(c)));
+    Array.from(cats).sort().forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat; opt.textContent = cat;
+      select.appendChild(opt);
+    });
+    if (Array.from(select.options).some(o => o.value === currentVal)) select.value = currentVal;
+  }
+
+  function populateKeywordFilter(filterCategory) {
+    const select = document.getElementById('keywordSelect');
+    const currentVal = select.value;
+    select.innerHTML = '<option value="ALL">All Keywords</option>';
+    const kws = new Set();
+    rawDataset.forEach(item => {
+      getItemKeywords(item).forEach(kw => {
+        if (!filterCategory || filterCategory === 'ALL' || KEYWORD_TO_CATEGORY[kw] === filterCategory) {
+          kws.add(kw);
+        }
+      });
+    });
+    Array.from(kws).sort().forEach(kw => {
+      const opt = document.createElement('option');
+      opt.value = kw; opt.textContent = kw;
+      select.appendChild(opt);
+    });
+    if (Array.from(select.options).some(o => o.value === currentVal)) select.value = currentVal;
+    else select.value = 'ALL';
+  }
+
+  function createCardNode(item) {
+    const card = document.createElement('div');
+    card.className = 'card' + (item.isOutOfStock ? ' out-of-stock' : '');
+    const cats = getItemCategories(item);
+    card.innerHTML = `
+      <div class="card-badge-bar">
+        <span class="item-badge">#${item.itemNumber ?? ''}</span>
+        <span class="stock-badge ${item.isOutOfStock ? 'outofstock' : 'instock'}">${item.isOutOfStock ? 'Unavailable' : 'In Stock'}</span>
+      </div>
+      <img src="${item.image || 'https://via.placeholder.com/200?text=No+Image'}" alt="${(item.title || '').replace(/"/g,'&quot;')}" loading="lazy">
+      <div class="card-body">
+        <div class="cat-tag">${cats[0] || ''}</div>
+        <div class="title" title="${(item.title || '').replace(/"/g,'&quot;')}">${item.title || ''}</div>
+        <div class="value">${item.numericValue > 0 ? '$' + item.numericValue.toFixed(2) : 'Free / Unvalued'}</div>
+        <a href="${item.url}" target="_blank" rel="noopener" class="btn-link">View Item</a>
+      </div>`;
+    return card;
+  }
+
+  function renderBatch() {
+    const mainGrid = document.getElementById('productGrid');
+    const chunk = remainingCatalog.slice(renderingIndex, renderingIndex + BATCH_SIZE);
+    chunk.forEach(i => mainGrid.appendChild(createCardNode(i)));
+    renderingIndex += BATCH_SIZE;
+    document.getElementById('loading-trigger').innerText =
+      renderingIndex >= remainingCatalog.length ? 'All items loaded.' : (remainingCatalog.length ? '' : 'No products found.');
+  }
+
+  function renderActiveFilterChips(query, category, keyword, stock) {
+    const container = document.getElementById('activeFilters');
+    container.innerHTML = '';
+    const chips = [];
+    if (query) chips.push({ label: `Search: "${query}"`, clear: () => document.getElementById('searchInput').value = '' });
+    if (category !== 'ALL') chips.push({ label: `Category: ${category}`, clear: () => document.getElementById('categorySelect').value = 'ALL' });
+    if (keyword !== 'ALL') chips.push({ label: `Keyword: ${keyword}`, clear: () => document.getElementById('keywordSelect').value = 'ALL' });
+    if (stock !== 'ALL') chips.push({ label: 'In Stock Only', clear: () => document.getElementById('stockSelect').value = 'ALL' });
+
+    chips.forEach(chip => {
+      const el = document.createElement('span');
+      el.className = 'filter-chip';
+      el.innerHTML = `${chip.label} <button aria-label="Remove filter">&times;</button>`;
+      el.querySelector('button').addEventListener('click', () => { chip.clear(); applyFilters(); });
+      container.appendChild(el);
+    });
+  }
+
+  function applyFilters() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    const category = document.getElementById('categorySelect').value;
+    const keyword = document.getElementById('keywordSelect').value;
+    const sort = document.getElementById('sortSelect').value;
+    const stock = document.getElementById('stockSelect').value;
+
+    let dataset = [...rawDataset];
+
+    if (stock === 'INSTOCK') dataset = dataset.filter(i => !i.isOutOfStock);
+
+    if (category !== 'ALL') {
+      dataset = dataset.filter(i => getItemCategories(i).includes(category));
+    }
+    if (keyword !== 'ALL') {
+      dataset = dataset.filter(i => getItemKeywords(i).includes(keyword));
+    }
+
+    if (sort === 'price-high') dataset.sort((a, b) => b.numericValue - a.numericValue);
+    if (sort === 'price-low') dataset.sort((a, b) => a.numericValue - b.numericValue);
+
+    const searchGrid = document.getElementById('searchResultsGrid');
+    const mainGrid = document.getElementById('productGrid');
+    const divider = document.getElementById('searchDivider');
+    searchGrid.innerHTML = '';
+    mainGrid.innerHTML = '';
+    renderingIndex = 0;
+
+    if (query.length > 0) {
+      searchMatches = dataset.filter(i => (i.title || '').toLowerCase().includes(query));
+      remainingCatalog = dataset.filter(i => !(i.title || '').toLowerCase().includes(query));
+      searchMatches.forEach(i => searchGrid.appendChild(createCardNode(i)));
+      divider.style.display = searchMatches.length ? 'block' : 'none';
+    } else {
+      searchMatches = [];
+      remainingCatalog = dataset;
+      divider.style.display = 'none';
+    }
+
+    renderActiveFilterChips(query, category, keyword, stock);
+    renderBatch();
+  }
+
+  // Category select narrows the keyword dropdown, but keyword can still be picked independently
+  document.getElementById('categorySelect').addEventListener('change', (e) => {
+    populateKeywordFilter(e.target.value);
+    document.getElementById('keywordSelect').value = 'ALL';
+    applyFilters();
+  });
+  document.getElementById('keywordSelect').addEventListener('change', applyFilters);
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  document.getElementById('sortSelect').addEventListener('change', applyFilters);
+  document.getElementById('stockSelect').addEventListener('change', applyFilters);
+
+  // Modal
+  document.getElementById('openScraperBtn').addEventListener('click', () => document.getElementById('scraperModal').classList.add('active'));
+  document.getElementById('closeModalBtn').addEventListener('click', () => document.getElementById('scraperModal').classList.remove('active'));
+
+  // File loaders
+  document.getElementById('manualUploadBtn').addEventListener('click', () => document.getElementById('fileFallbackCard').classList.toggle('active'));
+
+  document.getElementById('fileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => parseLoadedJSON(JSON.parse(evt.target.result), 'primary');
+    reader.readAsText(file);
+  });
+
+  document.getElementById('mergeFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => parseLoadedJSON(JSON.parse(evt.target.result), 'merged-' + file.name.replace(/\.json$/, ''));
+    reader.readAsText(file);
+  });
+
+  document.getElementById('fetchUrlBtn').addEventListener('click', async () => {
+    const url = document.getElementById('remoteUrlInput').value.trim();
+    if (!url) return;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      parseLoadedJSON(data, 'remote-' + url);
+    } catch (e) {
+      alert('Failed to fetch JSON from given URL.');
+    }
+  });
+
+  // Infinite scroll
+  const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && renderingIndex < remainingCatalog.length) renderBatch();
+  }, { rootMargin: '250px' });
+  observer.observe(document.getElementById('loading-trigger'));
+
+  initializeDataset();
+</script>
+</body>
+</html>
