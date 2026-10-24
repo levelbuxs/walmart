@@ -1,0 +1,19 @@
+{
+  "name": "product-pulse",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:browser": "node tests/browser.mjs",
+    "test:no-extension": "node tests/browser-monitor.mjs",
+    "start": "node server.js",
+    "test:companion": "node tests/companion-browser.mjs"
+  },
+  "devDependencies": {
+    "@sparticuz/chromium": "^153.0.0"
+  },
+  "dependencies": {
+    "playwright": "^1.64.1"
+  }
+}

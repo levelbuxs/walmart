@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Product Pulse — keyword monitor",
+  "version": "1.0.0",
+  "description": "Watch signed-in product pages and alert on new products, removals, and new price highs.",
+  "permissions": ["storage", "alarms", "scripting", "notifications"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "Open Product Pulse", "default_icon": "icons/icon128.png" },
+  "icons": { "128": "icons/icon128.png" },
+  "options_page": "dashboard.html",
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" }
+}
