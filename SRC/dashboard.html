@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Product Pulse · Keyword monitor</title>
+  <link rel="icon" href="icons/icon128.png"><link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <aside class="rail">
+    <a class="brand" href="#"><span class="brand-icon">p<span>•</span></span><span>product<span class="brand-light">pulse</span></span></a>
+    <div class="workspace-label">YOUR WORKSPACE</div>
+    <nav>
+      <button class="nav-item active" data-view="monitors"><span>▦</span> Monitors <span id="nav-count" class="nav-count">0</span></button>
+      <button class="nav-item" data-view="activity"><span>◷</span> Activity <span id="activity-dot"></span></button>
+      <button class="nav-item" data-view="settings"><span>⚙</span> Notifications</button>
+      <button class="nav-item" data-view="guide"><span>⌘</span> Setup guide</button>
+    </nav>
+    <div class="rail-bottom"><div class="session-dot"></div><div><strong>In your browser</strong><small>Your session. Your products.</small></div></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span>Workspace <span class="slash">/</span> <strong id="breadcrumb">Monitors</strong></span><span class="local-label">◈ &nbsp; Stored locally</span></header>
+    <main>
+      <div id="preview-banner" class="preview-banner" hidden>INTERACTIVE PREVIEW <span>Sample data only. Install the extension to monitor your signed-in pages.</span></div>
+      <section id="view-monitors" class="view">
+        <div class="page-heading"><div><div class="eyebrow">STAY ONE STEP AHEAD</div><h1>Your product radar<span>.</span></h1><p>Watch your keywords. Catch new arrivals. Never miss a new high.</p></div><div class="heading-actions"><button id="check-all" class="button secondary">↻ &nbsp; Check now</button><button id="add-monitor" class="button primary">＋ &nbsp; Add monitor</button></div></div>
+        <div class="stats">
+          <div class="stat"><span class="stat-icon mint">◉</span><div><span class="stat-label">Active monitors</span><strong id="stat-active">0<span> / 30</span></strong></div></div>
+          <div class="stat"><span class="stat-icon violet">▦</span><div><span class="stat-label">Products on radar</span><strong id="stat-products">0</strong></div></div>
+          <div class="stat"><span class="stat-icon amber">↗</span><div><span class="stat-label">New products today</span><strong id="stat-new">0</strong></div></div>
+          <div class="stat"><span class="stat-icon coral">ϟ</span><div><span class="stat-label">Urgent alerts today</span><strong id="stat-urgent">0</strong></div></div>
+        </div>
+        <div class="monitor-toolbar"><div><h2>Keyword monitors <span id="monitor-count" class="pill">0</span></h2><span class="muted">First page only · Checked every 5–10 minutes</span></div><button id="bulk-add" class="text-button">＋ Import links</button></div>
+        <div class="radar-layout"><div id="monitor-list" class="monitor-list"></div><section class="product-panel"><div id="product-detail"></div></section></div>
+        <div class="info-note"><span>ϟ</span><p><strong>A new high gets your attention.</strong> New products trigger an alert. A new product priced above the keyword’s all-time recorded high triggers an URGENT alert. No changes? No noise.</p></div>
+      </section>
+      <section id="view-activity" class="view" hidden><div class="page-heading"><div><div class="eyebrow">THE LATEST SIGNALS</div><h1>Activity feed<span>.</span></h1><p>New arrivals, first-page changes, and urgent price highs.</p></div></div><div id="events-list"></div></section>
+      <section id="view-settings" class="view" hidden><div class="page-heading"><div><div class="eyebrow">RIGHT WHERE YOU NEED IT</div><h1>Your notifications<span>.</span></h1><p>On your desktop. In your pocket. Or both.</p></div></div>
+        <form id="settings-form" class="settings-panel">
+          <div class="setting-heading"><span class="stat-icon mint">▣</span><div><h2>Desktop notifications</h2><p>Native browser alerts on this PC.</p></div><label class="switch"><input id="desktop-enabled" type="checkbox" checked><span></span></label></div>
+          <div class="setting-body"><p>Allow notifications for your browser in your operating system. Focus / Do Not Disturb mode can hide alerts.</p><button type="button" id="test-desktop" class="button secondary">Send a test alert</button></div>
+          <div class="setting-heading"><span class="stat-icon violet">➤</span><div><h2>Telegram alerts</h2><p>Send notifications to your Android phone.</p></div><label class="switch"><input id="telegram-enabled" type="checkbox"><span></span></label></div>
+          <div class="setting-body"><div class="field-row"><label>Bot token<input id="bot-token" type="password" autocomplete="off" placeholder="Paste your BotFather token"></label><label>Chat ID<input id="chat-id" type="text" autocomplete="off" placeholder="Your Telegram chat ID"></label></div><p>Create a bot with <strong>@BotFather</strong>, then open your bot and send <strong>/start</strong>. Get your chat ID using <strong>@userinfobot</strong>. Enable Telegram notifications on Android. The token is stored locally in this browser profile, not synced or exported.</p><button type="button" id="test-telegram" class="button secondary">Send a Telegram test</button></div>
+          <div class="settings-footer"><span class="muted">Changes apply to all monitors.</span><button class="button primary" type="submit">Save preferences</button></div>
+        </form>
+      </section>
+      <section id="view-guide" class="view" hidden><div class="page-heading"><div><div class="eyebrow">A FEW MINUTES TO GET STARTED</div><h1>Set up your radar<span>.</span></h1><p>No server. No shared passwords. Just your browser.</p></div></div><div class="guide-grid">
+        <article class="guide-card"><span class="step">01</span><h2>Load the extension</h2><p>In Chrome, Edge, or a Chromium browser that supports extensions, open the extensions page. Enable Developer mode, choose <strong>Load unpacked</strong>, and select the <strong>SRC</strong> folder. Pin Product Pulse, then click its icon.</p></article>
+        <article class="guide-card"><span class="step">02</span><h2>Use your signed-in page</h2><p>Sign in to the product site in the same browser profile. Search a keyword, sort by highest price, and copy the first-page URL. Add it as a monitor. If the URL doesn’t retain the keyword or sorting, monitoring that search won’t work reliably.</p></article>
+        <article class="guide-card"><span class="step">03</span><h2>Save the baseline</h2><p>The first check records every detected product on page one, without new-product alerts. Later checks compare product IDs. Items leaving the first page trigger an update, not a claim that the product was deleted from the site.</p></article>
+        <article class="guide-card"><span class="step">04</span><h2>Keep the browser running</h2><p>The extension opens a temporary background tab for each check, then closes it. Keep your PC awake, browser running, and account signed in. Checks are queued; browser throttling, network delays, and sleep can delay alerts. It does not bypass verification or access restrictions.</p></article>
+      </div><div class="info-note"><span>i</span><p><strong>Made for your existing Walmart card layout.</strong> If a scan fails, open the page and verify login. Edit the monitor’s advanced CSS selectors if the layout differs. Empty or unstable scans keep the last good snapshot to prevent false removals. Use only where permitted by the site’s rules.</p></div></section>
+    </main>
+    <footer><span><span class="tiny-dot"></span> Product Pulse · Browser-based monitoring</span><span>No change, no notification.</span></footer>
+  </div>
+  <dialog id="monitor-dialog"><form id="monitor-form"><div class="dialog-header"><div><div class="eyebrow">EXPAND YOUR RADAR</div><h2 id="dialog-title">Add a keyword monitor</h2></div><button type="button" class="close-dialog" aria-label="Close">×</button></div><input id="monitor-id" type="hidden"><label>Keyword<input id="keyword" required maxlength="100" placeholder="e.g. ebike"></label><label>First-page URL<input id="page-url" type="url" required placeholder="https://… (sorted highest price first)"></label><label>Check interval<select id="interval"><option value="5">Every 5 minutes</option><option value="7">Every 7 minutes</option><option value="10">Every 10 minutes</option></select></label><details><summary>Advanced · Product selectors</summary><p class="muted">CSS selectors for the signed-in page’s product cards. Prices are USD ($); unavailable prices remain unknown.</p><label>Product card<input id="selector-card" required></label><label>Product title<input id="selector-title" required></label><label>Product link<input id="selector-link" required></label><label>Price element (optional)<input id="selector-price" placeholder="Blank uses the card text, preferring ‘Valued at’"></label></details><div class="dialog-note">Your first check saves a baseline. Alerts begin with the next change.</div><div class="dialog-footer"><button type="button" class="button secondary close-dialog">Cancel</button><button type="submit" class="button primary">Save monitor</button></div></form></dialog>
+  <dialog id="bulk-dialog"><form id="bulk-form"><div class="dialog-header"><div><div class="eyebrow">YOUR WHOLE WATCHLIST</div><h2>Import keyword links</h2></div><button type="button" class="close-dialog" aria-label="Close">×</button></div><label>One keyword and URL per line<textarea id="bulk-lines" rows="8" required placeholder="ebike | https://example.com/search?q=ebike&#10;laptop | https://example.com/search?q=laptop"></textarea></label><p class="muted">Up to 30 monitors total. Checks every 5 minutes, first page only. Custom selectors can be edited after import.</p><div class="dialog-footer"><button type="button" class="button secondary close-dialog">Cancel</button><button class="button primary" type="submit">Import monitors</button></div></form></dialog>
+  <div id="toast" role="status" hidden></div>
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

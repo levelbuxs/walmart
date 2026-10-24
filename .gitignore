@@ -1,0 +1,6 @@
+node_modules/
+SRC/test-results/
+SRC/*.zip
+
+# Local product snapshots, Telegram token and authenticated browser profile
+SRC/.local/
