@@ -1,0 +1,7 @@
+# Windows scripts are stored with Windows line endings so that a ZIP downloaded
+# from GitHub behaves when it is double-clicked. The later rule wins, so the
+# generic normalisation below does not touch them.
+* text=auto
+*.bat -text
+*.cmd -text
+*.ps1 -text

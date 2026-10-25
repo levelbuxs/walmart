@@ -46,11 +46,12 @@ test('a keyword flagged for an immediate check is taken first',()=>{
   assert.deepEqual(selectDueKeywords(keywords,new Set(),100,2).map(k=>k.id),['b','a']);
 });
 test('the experimental markers are added to the end of a keyword',()=>{
-  assert.deepEqual(experimentalVariants('chair'),['chair*','chair&','chair"']);
-  assert.deepEqual(experimentalVariants('power bank'),['power bank*','power bank&','power bank"']);
+  assert.deepEqual(experimentalVariants('chair'),['chair&','chair8']);
+  assert.deepEqual(experimentalVariants('power bank'),['power bank&','power bank8']);
+  assert.deepEqual(experimentalVariants('chair',['*']),['chair*']);
   assert.deepEqual(experimentalVariants(''),[]);
-  const url=new URL(keywordUrl('chair*'));
-  assert.equal(url.searchParams.get('queryNups'),'chair*');
+  const url=new URL(keywordUrl('chair8'));
+  assert.equal(url.searchParams.get('queryNups'),'chair8');
   assert.equal(url.searchParams.get('sort'),'price_high');
   assert.equal(url.searchParams.get('page'),'1');
   const amp=new URL(keywordUrl('chair&'));

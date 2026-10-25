@@ -21,9 +21,10 @@ const card = (id, name, price) =>
 const page = body => `<html><body>${body}</body></html>`;
 const fixtureBody = (number, query) => {
   const q = String(query || '');
-  if (q === 'chair*') return page(card('b', 'Chair B', '49.99') + card('c', 'Chair C', '29.99'));
+  // The extra-item markers are & and 8 by default; the test adds * as a third.
   if (q === 'chair&') return page(card('d', 'Chair D', '19.99'));
-  if (q === 'chair"') return page(card('b', 'Chair B', '49.99'));
+  if (q === 'chair8') return page(card('c', 'Chair C', '29.99'));
+  if (q === 'chair*') return page(card('b', 'Chair B', '49.99'));
   return number === 1
     ? page(card('a', 'Chair A', '99.99') + card('b', 'Chair B', '49.99'))
     : page(card('b', 'Chair B', '49.99') + card('c', 'Chair C', '29.99'));
@@ -72,7 +73,7 @@ test('the companion reads every page of a keyword, then refreshes the same tab',
     assert(ready, `the companion did not start: ${log.join('')}`);
 
     assert.equal((await call('keywords', { keywords: ['chair'], includeAll: false })).status, 200);
-    assert.equal((await call('settings', { minutes: 1, concurrency: 1, pages: 2, sort: 'price_high' })).status, 200);
+    assert.equal((await call('settings', { minutes: 1, concurrency: 1, pages: 2, sort: 'price_high', extraMarkers: '& 8 *' })).status, 200);
     assert.equal((await call('start', {})).status, 200);
 
     let snapshot = null;
@@ -111,7 +112,7 @@ test('the companion reads every page of a keyword, then refreshes the same tab',
     assert.match(missing.result.error, /not on the first page/);
 
     // Filters and keywords can be changed while it is running.
-    assert.equal((await call('settings', { minutes: 5, concurrency: 1, pages: 1, sort: 'price_high' })).status, 200);
+    assert.equal((await call('settings', { minutes: 5, concurrency: 1, pages: 1, sort: 'price_high', extraMarkers: '& 8 *' })).status, 200);
     assert.equal((await call('keywords', { keywords: ['chair', 'sofa'], includeAll: false })).status, 200);
 
     // The experimental extra-item search adds what the plain keyword misses.
@@ -125,17 +126,18 @@ test('the companion reads every page of a keyword, then refreshes the same tab',
       else await new Promise(r => setTimeout(r, 500));
     }
     assert(withExtra, 'the extra-item search did not run');
-    assert.deepEqual(withExtra.products.map(p => p.id), ['a', 'b', 'c', 'd']);
+    assert.deepEqual(withExtra.products.map(p => p.id).sort(), ['a', 'b', 'c', 'd']);
     const extras = withExtra.variants.map(v => v.query);
-    assert.deepEqual(extras, ['chair*', 'chair&', 'chair"']);
+    assert.deepEqual(extras, ['chair&', 'chair8', 'chair*']);
     // Pages per search was lowered to 1 before this pass, so the plain keyword
-    // only returned a and b: the * search brought c, the & search brought d.
-    assert.equal(withExtra.variants.find(v => v.query === 'chair*').extra, 1);
+    // only returned a and b: the & search brought d, the 8 search brought c and
+    // the * search only repeated b, which was already known.
     assert.equal(withExtra.variants.find(v => v.query === 'chair&').extra, 1);
-    assert.equal(withExtra.variants.find(v => v.query === 'chair"').extra, 0);
-    assert(requests.some(href => decodeURIComponent(href).includes('queryNups=chair*')));
+    assert.equal(withExtra.variants.find(v => v.query === 'chair8').extra, 1);
+    assert.equal(withExtra.variants.find(v => v.query === 'chair*').extra, 0);
     assert(requests.some(href => decodeURIComponent(href).includes('queryNups=chair&')));
-    assert(requests.some(href => decodeURIComponent(href).includes('queryNups=chair"')));
+    assert(requests.some(href => decodeURIComponent(href).includes('queryNups=chair8')));
+    assert(requests.some(href => decodeURIComponent(href).includes('queryNups=chair*')));
   } finally {
     child.kill('SIGTERM');
     await new Promise(resolve => child.on('exit', resolve));

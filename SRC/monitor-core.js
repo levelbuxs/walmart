@@ -50,6 +50,7 @@ export function validateSettings(input = {}) {
   return {
     minutes, concurrency, pages, sort,
     minValue: minValue || 0, maxValue: maxValue || 0,
+    extraMarkers: parseExtraMarkers(input.extraMarkers),
     telegram: !!input.telegram, chatId: String(input.chatId || '').trim().slice(0, 100),
     desktopToasts: input.desktopToasts !== false
   };
@@ -118,12 +119,26 @@ export function selectDueKeywords(keywords, activeIds, now, concurrency) {
 
 // Markers that sometimes make the reviewer portal return more items than the
 // plain keyword does. They are opt-in per keyword and never change the
-// baseline keyword itself.
-export const EXTRA_MARKERS = ['*', '&', '"'];
-export function experimentalVariants(keyword) {
+// baseline keyword itself. The set is editable in Preferences.
+export const DEFAULT_EXTRA_MARKERS = ['&', '8'];
+export const MAX_EXTRA_MARKERS = 6;
+export function parseExtraMarkers(input) {
+  const raw = Array.isArray(input) ? input : String(input ?? '').split(/[\s,]+/);
+  const markers = [];
+  for (const value of raw) {
+    const marker = String(value ?? '').trim();
+    if (!marker) continue;
+    if (marker.length > 3) throw new Error('Each extra-item marker is one to three characters.');
+    if (!markers.includes(marker)) markers.push(marker);
+  }
+  if (!markers.length) return [...DEFAULT_EXTRA_MARKERS];
+  if (markers.length > MAX_EXTRA_MARKERS) throw new Error(`Use at most ${MAX_EXTRA_MARKERS} extra-item markers.`);
+  return markers;
+}
+export function experimentalVariants(keyword, markers = DEFAULT_EXTRA_MARKERS) {
   const base = String(keyword || '').trim();
   if (!base) return [];
-  return EXTRA_MARKERS.map(marker => base + marker);
+  return parseExtraMarkers(markers).map(marker => base + marker);
 }
 
 // Reads the reviewer portal until the list stops changing. Returns the raw

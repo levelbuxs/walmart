@@ -35,6 +35,24 @@ try{
   await page.locator('#schedule-summary').filter({hasText:'3 pages per search'}).waitFor({state:'attached'});
   const saved=(await (await fetch(base+'/api/state')).json()).settings;
   assert.equal(saved.pages,3);assert.equal(saved.sort,'price_low');assert.equal(saved.minValue,10);assert.equal(saved.maxValue,900);
+  // The extra-item markers are configurable and saved with the other preferences.
+  await page.locator('#extra-markers').fill('& 8 *');
+  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+  const withMarkers=(await (await fetch(base+'/api/state')).json()).settings;
+  assert.deepEqual(withMarkers.extraMarkers,['&','8','*']);
+  await page.locator('#extra-markers').fill('& 8');
+  await page.getByRole('button',{name:'Save preferences',exact:true}).click();
+  // The browser picker offers the browsers that can be driven and remembers the choice.
+  await page.locator('[data-view="setup"]').click();
+  await page.locator('#browser-choice').waitFor();
+  assert((await page.locator('#browser-choice option').count())>=4,'the browser picker lists the browsers');
+  await page.locator('#browser-choice').selectOption('chromium');
+  await page.locator('#browser-save').click();
+  await page.locator('#toast').filter({hasText:'Chromium'}).waitFor();
+  assert.equal((await (await fetch(base+'/api/state')).json()).browserChoice.browser,'chromium');
+  await page.locator('#browser-choice').selectOption(initial.browserChoice?.browser||'chrome');
+  await page.locator('#browser-save').click();
+  await page.locator('[data-view="settings"]').click();
   // Saved profiles: create one, apply it, then remove it.
   await page.locator('#edit-keywords').click();
   await page.locator('#profile-name').fill('Furniture test');
@@ -90,7 +108,7 @@ try{
   await fixture.setContent('<html><body>Prove you are human. Press and hold.</body></html>');assert.equal((await fixture.evaluate(readClaimableProducts)).status,'verification');
   await fixture.setContent('<html><body>No products found</body></html>');assert.equal((await fixture.evaluate(readClaimableProducts)).status,'empty');
   await fixture.setContent('<html><body>Loading…</body></html>');assert.equal((await fixture.evaluate(readClaimableProducts)).status,'unrecognized');
-  console.log('Companion browser checks passed: saved editable lists, saved profiles, custom schedule, pages per search, sort and value range, watchlist box with live filters, add and remove keywords, experimental extra-item switch, concurrency warnings, preview safety, responsive UI, API isolation, screenshot-style extraction, images, value parsing, stock/action exclusions, verification, recognized empty results.');
+  console.log('Companion browser checks passed: saved editable lists, saved profiles, custom schedule, pages per search, sort and value range, configurable extra-item markers, browser picker, watchlist box with live filters, add and remove keywords, experimental extra-item switch, concurrency warnings, preview safety, responsive UI, API isolation, screenshot-style extraction, images, value parsing, stock/action exclusions, verification, recognized empty results.');
 }finally{
   await request('keywords',{keywords:initial.keywords.filter(k=>k.keyword).map(k=>k.keyword),includeAll:initial.keywords.some(k=>!k.keyword)});
   await request('settings',initial.settings);

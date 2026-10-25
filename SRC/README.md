@@ -10,6 +10,18 @@ See **[ARCHITECTURE.md](ARCHITECTURE.md)** for how the reference site works, wha
 
 Requirements: **Node.js 22+**, Google Chrome, and a desktop session capable of displaying browser windows.
 
+### Windows: three clicks
+
+1. Download this repository as a ZIP and extract it somewhere permanent (for example `C:\ProductPulse`).
+2. Open the **`SRC`** folder and **double-click `setup.bat`**. It installs Node.js if needed, installs the program's files, asks which browser to use, and puts a shortcut on your desktop.
+3. Double-click **`start.bat`** (or the desktop shortcut) whenever you want to use it. The dashboard opens at **http://localhost:8080** by itself.
+
+`ProductPulse.bat` does both in one click — install anything that is missing, then start.
+
+The full step-by-step Windows tutorial, with every command to copy and paste, is in **[WINDOWS-SETUP.md](WINDOWS-SETUP.md)**.
+
+### Any platform
+
 1. Download/extract the source and open a terminal in `SRC`.
 2. Run:
 
@@ -23,6 +35,16 @@ Requirements: **Node.js 22+**, Google Chrome, and a desktop session capable of d
 5. Enter your keywords, set the filters in the **Watchlist** view, then click **Start monitoring**.
 
 `npm ci` also installs `node-notifier` as an **optional** dependency. It is what raises the Windows toast; if it fails to install, everything else still works and the notification failure is reported in Activity.
+
+### Which browser does it use?
+
+**Chrome by default, and you can pick another one.** The choice is stored in `.local/product-pulse/browser.json` and can be changed at any time:
+
+* in the dashboard — **Browser setup → Which browser? → Save browser**,
+* in the Windows menu — `ProductPulse.bat` → **3) Choose the browser**,
+* with the environment variable `PULSE_BROWSER=chrome|msedge|chromium`.
+
+The program looks for Chrome, Edge and Brave in the usual places on Windows, macOS and Linux, and reports which ones it found. If the one you pick is not installed, the choice is still saved and reported honestly instead of failing silently.
 
 ### Which browser/account does this use?
 
@@ -89,6 +111,7 @@ Preferences has a **Search scope and filters** block:
 - **Pages per search** (1–5): how many pages of the reviewer portal are read for each keyword. **The default is 1 — the first page only.** More pages means more requests to Walmart; use one unless you need more.
 - **Sort on the reviewer portal**: `price_high` or `price_low`. Every keyword uses the same high-to-low link by default, so the list is always ordered by value, highest first. After a page is read, the values are checked against the order that was requested; if Walmart ignored the sort, the keyword shows a note instead of quietly showing a different order.
 - **Minimum / maximum value**: a range applied by Product Pulse to what it shows. Products outside the range are hidden and counted. Products whose value is unknown are counted separately — they are never assumed to be inside the range.
+- **Extra-item markers**: the characters tried at the end of a keyword for keywords with the **⚗** switch on. Default `& 8`. Editable, one to three characters each, up to six.
 
 Filters never change what the portal itself returns; they only shape this dashboard. They can be changed while the program is running.
 
@@ -96,15 +119,16 @@ Filters never change what the portal itself returns; they only shape this dashbo
 
 Some keywords return more products when a character is added to the end of the search term. The **⚗** button next to a keyword (or the *Extra items* list in the keyword editor) turns this on for that keyword only.
 
-When it is on, after the normal search the program searches the same keyword again as:
+When it is on, after the normal search the program searches the same keyword again with the **extra-item markers**:
 
-* `keyword*`
 * `keyword&`
-* `keyword"`
+* `keyword8`
 
 and keeps every product those searches reveal that the plain keyword did not show. The extra products are merged into the list, counted in the keyword note (*"Extra-item search added 3 item(s) that the plain keyword did not show"*), and are announced like any other new product. The markers are added to the keyword — the keyword itself is never changed, and the extra searches only read the first page.
 
-This is experimental: it is three extra requests per keyword per cycle, and whether it helps depends on the keyword.
+**The markers are yours to change.** In **Preferences → Search scope and filters → Extra-item markers**, type them separated by spaces (for example `& 8`, or `* & "`, or just `*`). Each marker is one to three characters, up to six markers are kept, duplicates are removed, and clearing the field falls back to the default `& 8`.
+
+This is experimental: it is one extra request per marker per keyword per cycle, and whether it helps depends on the keyword.
 
 ## Notifications
 
@@ -197,6 +221,15 @@ The local server binds to **127.0.0.1 by default**. Do not expose it to a public
 Only explicitly allowlisted assets are served; `.local`, browser profile, tokens, and source/test files are not static routes. `.local` is ignored by Git and excluded from session snapshots. Back it up privately if needed. Do not copy it into an archive you share.
 
 For the Arena setup preview only, run `PULSE_PREVIEW=1 HOST=0.0.0.0 npm start`. This disables browser launching, monitoring, and Telegram delivery; editing keyword/schedule configuration is still available. Never use that mode as a remotely exposed authenticated monitor.
+
+## Documentation
+
+| Document | What it covers |
+| --- | --- |
+| **[WINDOWS-SETUP.md](WINDOWS-SETUP.md)** | The full Windows tutorial, step by step, with copy-and-paste commands |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | How the reference site works, what this program does differently, and why no extension is needed |
+| **[README.md](README.md)** (this file) | Every setting and behavior, in detail |
+| **[BROWSER-SETUP.md](BROWSER-SETUP.md)** | The older DevTools console approach — historical, not recommended |
 
 ## Tests
 

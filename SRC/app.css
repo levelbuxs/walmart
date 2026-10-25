@@ -49,3 +49,73 @@
 .dialog-hint{font-size:10px;color:#9bad9f;line-height:1.9;margin:7px 0 0}
 .dialog-hint code{background:#f1f6f2;padding:2px 5px;border-radius:4px;font-size:10px;color:#5c8168}
 @media(max-width:1000px){.watch-grid{grid-template-columns:1fr}}
+
+/* ------------------------------------------------------------------
+   Phase 3 polish: softer surfaces, clearer cards, calmer sidebar.
+   ------------------------------------------------------------------ */
+body{background:#f4f7f5;-webkit-font-smoothing:antialiased}
+main{padding:38px 40px}
+h1{font-size:36px;letter-spacing:-1.4px}
+.page-heading{margin-bottom:26px}
+.page-heading p{font-size:11.5px;color:#8b9d93}
+
+/* Cards breathe a little more and lift on hover. */
+.stats{gap:16px}
+.stats article{border-radius:12px;padding:19px 20px;box-shadow:0 1px 2px #173c2b08;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.stats article:hover{transform:translateY(-2px);box-shadow:0 8px 20px #173c2b0f;border-color:#d9e6dd}
+.stat-icon{border-radius:12px}
+.schedule-bar{border-radius:9px;padding:14px 18px;background:linear-gradient(90deg,#eef5f0,#f6faf7);border-color:#e2ebe4}
+.catalog{gap:20px}
+.product-card{border-radius:12px;box-shadow:0 1px 2px #173c2b08;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.product-card:hover{transform:translateY(-3px);box-shadow:0 14px 32px #173c2b14;border-color:#d5e4da}
+.product-image{height:210px;background:linear-gradient(180deg,#fbfdfc,#f4f8f5);border-bottom:1px solid #eef3ef}
+.product-image img{transition:transform .25s ease}
+.product-card:hover .product-image img{transform:scale(1.04)}
+.product-body{padding:18px 19px 19px}
+.product-keyword{display:inline-flex;align-self:flex-start;background:#f0f6f2;color:#7d9a89;border-radius:20px;padding:3px 9px;font-size:8.5px;letter-spacing:.9px;text-transform:uppercase;font-weight:650;margin-bottom:11px}
+.product-title{font-size:12.5px;color:#3f5f4d;min-height:42px}
+.product-value{margin:14px 0 15px;align-items:center}
+.product-value strong{font-size:23px}
+.badge.urgent{background:#ffefe8;color:#c96240;box-shadow:0 0 0 1px #f6d9cd inset}
+.badge.new{background:#e7f6ec;color:#2f9263}
+.badge.available{background:#f0f7f2;color:#74a086}
+.product-link{border-radius:7px;padding:10px;font-size:10.5px}
+.product-link.claim{box-shadow:0 4px 10px #087c6418}
+.empty-state{border-radius:12px;padding:70px 30px;box-shadow:0 1px 2px #173c2b08}
+.empty-icon{background:linear-gradient(180deg,#f1f8f3,#e8f3ec);box-shadow:0 8px 20px #173c2b0d}
+.empty-state h2{font-size:20px}
+.empty-state p{font-size:11.5px;max-width:460px}
+.getting-started{display:grid;gap:12px;margin:26px auto 0;max-width:520px;text-align:left}
+.getting-started li{display:flex;gap:12px;align-items:flex-start;background:#f7faf8;border:1px solid var(--border);border-radius:9px;padding:12px 14px;font-size:11px;color:#7b9187;line-height:1.7}
+.getting-started b{display:block;color:#4c7160;font-size:11.5px;margin-bottom:3px}
+.getting-started .step{flex-shrink:0;width:20px;height:20px;border-radius:50%;background:var(--green);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.getting-started ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+
+/* Sidebar: quieter labels, roomier navigation, calmer keyword list. */
+.sidebar{width:256px;padding:32px 20px 22px;background:#fbfdfc}
+.brand{font-size:22px;padding:0 3px}
+.nav{font-size:12.5px;padding:11px 13px;gap:10px}
+.nav>span{font-size:18px;opacity:.75}
+.nav.active{box-shadow:inset 0 0 0 1px #d8e9de}
+.nav b{background:#e6f0e9;color:#5c8a72}
+.keyword{font-size:11.5px;padding:9px 12px;border-radius:7px}
+.keyword:hover{background:#f0f5f2;color:#5d8070}
+.keyword.active{box-shadow:inset 0 0 0 1px #d8e9de}
+.keyword .timer{font-size:9.5px}
+.sidebar-footer{background:#f7faf8;border-radius:9px;padding:14px 12px;border:1px solid var(--border)}
+.topbar{height:70px;background:rgba(251,253,252,.9);backdrop-filter:blur(6px);position:sticky;top:0;z-index:2}
+
+/* Setup and watchlist cards. */
+.setup-card{border-radius:12px;box-shadow:0 1px 2px #173c2b08;padding:26px}
+.setup-card h2{font-size:15.5px}
+.setup-card pre{font-size:11.5px;border:1px solid #e6eee8;background:#f7faf8}
+.setup-card label{margin-top:4px}
+.setup-card .selected-summary{margin:12px 0 14px;background:#f7faf8;font-size:10px;word-break:break-word}
+.setup-card .button{margin-top:4px}
+.watch-item{border-radius:9px;background:#fff;transition:border-color .15s ease,box-shadow .15s ease}
+.watch-item:hover{border-color:#d6e5dc;box-shadow:0 3px 10px #173c2b0b}
+.watch-item.scanning{border-color:#bfe0d2;background:#f7fcf9}
+.watch-item.late{border-color:#f0d9cd}
+.setting-section{padding:30px}
+.setting-section h2{font-size:15.5px}
+@media(max-width:1200px){main{padding:30px 25px}}

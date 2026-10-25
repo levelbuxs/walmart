@@ -1,4 +1,9 @@
-> **Historical console-script instructions.** The current requested app is the local browser companion. See [README.md](README.md). This console approach is not recommended given the verification behavior you reported.
+> **Historical console-script instructions.** The current requested app is the local browser companion.
+> - **Windows, step by step:** [WINDOWS-SETUP.md](WINDOWS-SETUP.md)
+> - **What the program does:** [README.md](README.md)
+> - **Why no extension:** [ARCHITECTURE.md](ARCHITECTURE.md)
+>
+> This console approach is not recommended given the verification behavior you reported. It is kept only as a record of the earlier version.
 
 # No-extension monitor — start here
 

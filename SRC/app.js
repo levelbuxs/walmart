@@ -4,6 +4,12 @@ const seenEvents = new Set();
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = value => value == null ? 'Unknown' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(value);
 const label = keyword => keyword || 'All products · unfiltered';
+// The extra-item markers are configurable, so the tooltip reads them from the
+// saved settings instead of hard-coding them.
+function extraTitle(){
+  const markers=(state?.settings?.extraMarkers||[]).map(m=>`${m}`);
+  return markers.length?`Experimental: also search this keyword with ${markers.join(', ')} to find extra items`:'Experimental: also search this keyword with the extra markers to find extra items';
+}
 const link = value => { try { const u = new URL(value); return ['http:', 'https:'].includes(u.protocol) ? esc(u.href) : ''; } catch { return ''; } };
 function toast(text, error = false) { clearTimeout(toastTimer); $('toast').textContent=text; $('toast').className=error?'error':''; $('toast').hidden=false; toastTimer=setTimeout(()=>$('toast').hidden=true,error?10000:5000); }
 const guard = fn => async event => { try { await fn(event); } catch(error) { toast(error.message,true); } };
@@ -77,9 +83,9 @@ function render() {
   $('all-filter').classList.toggle('active',selected===null);
   $('keyword-list').innerHTML=state.keywords.map(k=>{
     const s=keywordStatus(k);
-    return `<div class="keyword-row"><button class="keyword ${selected===k.id?'active':''}" data-keyword="${esc(k.id)}"><span class="status ${s.className}">${s.icon}</span><span class="keyword-label">${esc(label(k.keyword))}</span><span class="timer" data-timer="${esc(k.id)}"></span></button><button class="extra-toggle ${k.experimental?'on':''}" data-extra="${esc(k.id)}" title="Experimental: also search this keyword with *, &amp; and &quot; to find extra items">⚗</button></div>`;
+    return `<div class="keyword-row"><button class="keyword ${selected===k.id?'active':''}" data-keyword="${esc(k.id)}"><span class="status ${s.className}">${s.icon}</span><span class="keyword-label">${esc(label(k.keyword))}</span><span class="timer" data-timer="${esc(k.id)}"></span></button><button class="extra-toggle ${k.experimental?'on':''}" data-extra="${esc(k.id)}" title="${esc(extraTitle())}">⚗</button></div>`;
   }).join('');
-  updateTimers();renderCatalog();renderActivity();renderProfiles();renderWatchlist();
+  updateTimers();renderCatalog();renderActivity();renderProfiles();renderWatchlist();renderBrowserChoice();
 }
 function buildEntries() {
   const entries=new Map();
@@ -118,7 +124,15 @@ function renderCatalog() {
   if(k){const live=liveFor(k.id);const parts=[];if(snapshot)parts.push(`Last checked ${new Date(snapshot.checked).toLocaleString()} · Recorded high: ${money(snapshot.high)} · ${snapshot.excluded||0} unavailable/non-actionable cards excluded`);else parts.push('Waiting for the first successful scan.');if(snapshot?.pages)parts.push(`${snapshot.pages} ${snapshot.pages===1?'page':'pages'} read`);if(snapshot?.filtered)parts.push(`${snapshot.filtered} outside the value range`);if(snapshot?.unknownValue)parts.push(`${snapshot.unknownValue} with an unknown value`);if(live)parts.push(`Scanning page ${live.page} of ${live.pages} · ${live.found} found so far`);if(k.note)parts.push(k.note);if(k.error)parts.push(k.error);$('selected-summary').textContent=parts.join(' · ');}
   if(!products.length) {
     const checked=Object.keys(state.snapshots).length>0;
-    $('catalog').innerHTML=`<div class="empty-state"><span class="empty-icon">${query?'⌕':'◉'}</span><h2>${query?'No matching products':checked?'Nothing claimable here right now':'Your first finds, all in one place.'}</h2><p>${query?'Try another name or select a different keyword.':checked?'No eligible products match this view. Unavailable items are excluded, and removals never trigger an alert.':'Connect your browser, sign in to the reviewer portal, and start your keyword list. Product images, names, and values appear as each page is read.'}</p>${!checked&&!query?'<button class="button primary" data-open-browser>Connect your browser ↗</button>':''}</div>`;
+    if(query){
+      $('catalog').innerHTML=`<div class="empty-state"><span class="empty-icon">⌕</span><h2>No matching products</h2><p>Try another name, or pick a different keyword on the left. Every product you monitor is searched here by title.</p></div>`;
+      return;
+    }
+    if(checked){
+      $('catalog').innerHTML=`<div class="empty-state"><span class="empty-icon">◉</span><h2>Nothing claimable here right now</h2><p>No eligible products match this view. Unavailable items are excluded, and removals never trigger an alert — the next pass will fill this page again.</p></div>`;
+      return;
+    }
+    $('catalog').innerHTML=`<div class="empty-state"><span class="empty-icon">◉</span><h2>Your first finds, all in one place.</h2><p>Three short steps and Product Pulse starts watching the reviewer portal for you. Products appear here — with their image, name and value — as each page is read.</p><div class="getting-started"><ul><li><span class="step">1</span><div><b>Open the browser and sign in</b>Product Pulse opens a real Chrome window with its own profile. Sign in to Walmart once.</div></li><li><span class="step">2</span><div><b>Pick your keywords</b>Your list is prefilled. Add, remove or reorder anything you like — the program takes them one at a time.</div></li><li><span class="step">3</span><div><b>Start monitoring</b>The first pass quietly builds a baseline. After that you are told about new arrivals only.</div></li></ul></div><button class="button primary" data-open-browser>Open browser ↗</button></div>`;
     return;
   }
   $('catalog').innerHTML=products.map(p=>`<article class="product-card"><a class="product-image" href="${link(p.url)}" target="_blank" rel="noopener noreferrer">${p.image?`<img loading="lazy" src="${link(p.image)}" alt="${esc(p.title)}" referrerpolicy="no-referrer">`:'<span class="image-placeholder">▧</span>'}${p.urgent?'<span class="badge urgent">ϟ URGENT · NEW HIGH</span>':p.added?'<span class="badge new">+ NEW ARRIVAL</span>':''}</a><div class="product-body"><span class="product-keyword">${esc(p.keywordLabel)}</span><a class="product-title" href="${link(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.title)}</a><div class="product-value"><div><small>PRODUCT VALUE</small><strong>${money(p.price)}</strong></div><span class="badge available">Claim action available</span></div><div class="card-actions"><button class="product-link claim" data-claim="${esc(p.id)}" data-claim-keyword="${esc(p.keyword)}" data-claim-title="${esc(p.title)}">Claim on Walmart ↗</button><a class="product-link" href="${link(p.url)}" target="_blank" rel="noopener noreferrer">View item</a></div></div></article>`).join('');
@@ -126,6 +140,25 @@ function renderCatalog() {
 }
 function renderActivity() {
   $('activity-list').innerHTML=state.events.length?state.events.map(e=>`<article class="event"><div class="event-header"><span class="badge ${e.urgent?'urgent':'new'}">${e.urgent?'ϟ URGENT':'+ NEW'}</span><h2>${e.urgent?'URGENT new product':'New product'} · ${esc(label(e.keyword))}</h2><time>${esc(new Date(e.at).toLocaleString())}</time></div><p>${e.count} ${e.count===1?'product':'products'} added to the reviewer pages</p>${e.items.map(p=>`<div class="event-item">${p.image?`<img loading="lazy" src="${link(p.image)}" alt="" referrerpolicy="no-referrer">`:''}<a href="${link(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.title)}</a><strong>${money(p.price)}</strong></div>`).join('')}${e.failure?`<p class="failure">${esc(e.failure)} The alert is saved here; delivery was not automatically retried.</p>`:''}</article>`).join(''):'<div class="empty-state"><span class="empty-icon">◷</span><h2>No noise. Just new arrivals.</h2><p>Your first scan quietly establishes a baseline. New-product alerts will appear here after later checks. There are no removal alerts.</p></div>';
+}
+// The picker is rebuilt only when the list of browsers changes, and a choice
+// the user has made in the dropdown is kept until it is saved.
+let browserOptionsSignature='', browserOptionsSaved='';
+function renderBrowserChoice() {
+  const select=$('browser-choice');
+  if(!select||!state)return;
+  const browsers=state.browsers||[];
+  const current=state.browserChoice?.browser||'chrome';
+  const signature=browsers.map(item=>`${item.id}:${item.installed?1:0}`).join('|');
+  if(signature!==browserOptionsSignature){
+    browserOptionsSignature=signature;
+    select.innerHTML=browsers.map(item=>`<option value="${esc(item.id)}">${esc(item.label)}${item.installed?'':' (not found)'}</option>`).join('');
+    browserOptionsSaved='';
+  }
+  if(current!==browserOptionsSaved){ select.value=current; browserOptionsSaved=current; }
+  if(!select.value)select.value=current;
+  const detail=browsers.find(item=>item.id===select.value);
+  $('browser-detail').textContent=detail?`${detail.note}${detail.path?` — ${detail.path}`:''}`:'';
 }
 function renderProfiles() {
   const list=$('profile-list');
@@ -141,7 +174,7 @@ function renderWatchlist() {
   list.innerHTML=state.keywords.map((k,index)=>{
     const s=keywordStatus(k);
     const live=liveFor(k.id);
-    return `<li class="watch-item ${s.className}"><span class="watch-index">${index+1}</span><span class="status ${s.className}">${s.icon}</span><span class="watch-name">${esc(label(k.keyword))}</span>${live?`<span class="watch-live">page ${live.page}/${live.pages} · ${live.found} found</span>`:''}<span class="timer" data-timer="${esc(k.id)}"></span><button class="extra-toggle ${k.experimental?'on':''}" data-extra="${esc(k.id)}" title="Experimental: also search this keyword with *, &amp; and &quot; to find extra items">⚗</button><button class="watch-remove" data-remove="${esc(k.id)}" title="Remove this keyword">×</button></li>`;
+    return `<li class="watch-item ${s.className}"><span class="watch-index">${index+1}</span><span class="status ${s.className}">${s.icon}</span><span class="watch-name">${esc(label(k.keyword))}</span>${live?`<span class="watch-live">page ${live.page}/${live.pages} · ${live.found} found</span>`:''}<span class="timer" data-timer="${esc(k.id)}"></span><button class="extra-toggle ${k.experimental?'on':''}" data-extra="${esc(k.id)}" title="${esc(extraTitle())}">⚗</button><button class="watch-remove" data-remove="${esc(k.id)}" title="Remove this keyword">×</button></li>`;
   }).join('');
   $('watchlist-include-all').checked=state.keywords.some(k=>!k.keyword);
   const minutes=state.settings.minutes;
@@ -162,6 +195,7 @@ function syncSettings() {
   $('custom-field').hidden=$('interval').value!=='custom';$('concurrency').value=String(state.settings.concurrency);
   $('pages').value=String(state.settings.pages||1);$('portal-sort').value=state.settings.sort||'price_high';
   $('min-value').value=state.settings.minValue?String(state.settings.minValue):'';$('max-value').value=state.settings.maxValue?String(state.settings.maxValue):'';
+  $('extra-markers').value=(state.settings.extraMarkers||[]).join(' ');
   $('telegram-enabled').checked=state.settings.telegram;$('chat-id').value=state.settings.chatId;
   $('toast-enabled').checked=state.settings.desktopToasts!==false;
   $('token-state').textContent=state.settings.hasToken?'Telegram token saved on this computer':'No Telegram token saved';
@@ -204,6 +238,7 @@ async function pushSettings(overrides={}) {
   await post('settings',{
     minutes:state.settings.minutes,concurrency:state.settings.concurrency,pages:state.settings.pages,
     sort:state.settings.sort,minValue:state.settings.minValue,maxValue:state.settings.maxValue,
+    extraMarkers:state.settings.extraMarkers,
     telegram:state.settings.telegram,chatId:state.settings.chatId,desktopToasts:state.settings.desktopToasts,
     ...overrides
   });
@@ -223,6 +258,16 @@ $('catalog').addEventListener('click',guard(async event=>{
   if(claim){await post('claim',{keyword:claim.dataset.claimKeyword||'',id:claim.dataset.claim,title:claim.dataset.claimTitle||''});toast('Opened the reviewer portal and highlighted that item. Click Walmart’s own Claim button there.');}
 }));
 $('open-browser').addEventListener('click',guard(openBrowser));$('setup-browser').addEventListener('click',guard(openBrowser));
+$('browser-choice').addEventListener('change',()=>{
+  const item=(state?.browsers||[]).find(b=>b.id===$('browser-choice').value);
+  $('browser-detail').textContent=item?`${item.note}${item.path?` — ${item.path}`:''}`:'';
+});
+$('browser-save').addEventListener('click',guard(async()=>{
+  const browser=$('browser-choice').value;
+  if(!browser)return;
+  await post('browser-choice',{browser});
+  toast(`Product Pulse will use ${(state.browsers||[]).find(b=>b.id===browser)?.label||browser} from now on.`);
+}));
 $('attach-browser').addEventListener('click',guard(attachBrowser));$('setup-attach').addEventListener('click',guard(attachBrowser));
 $('start').addEventListener('click',guard(async()=>{await post(state.running?'pause':'start');toast(state.running?'Monitoring started. First checks create silent baselines.':'Monitoring paused.');}));
 $('check-now').addEventListener('click',guard(async()=>{await post('check',{id:selected});toast('Check queued. Active keyword scans are not duplicated.');}));
@@ -231,7 +276,7 @@ $('interval').addEventListener('change',()=>{$('custom-field').hidden=$('interva
 $('concurrency').addEventListener('change',()=>{$('concurrency-warning').hidden=$('concurrency').value==='1';});
 $('settings-form').addEventListener('submit',guard(async event=>{
   event.preventDefault();
-  const body={minutes:Number($('interval').value==='custom'?$('custom-minutes').value:$('interval').value),concurrency:Number($('concurrency').value),pages:Number($('pages').value),sort:$('portal-sort').value,minValue:$('min-value').value,maxValue:$('max-value').value,telegram:$('telegram-enabled').checked,chatId:$('chat-id').value,desktopToasts:$('toast-enabled').checked};
+  const body={minutes:Number($('interval').value==='custom'?$('custom-minutes').value:$('interval').value),concurrency:Number($('concurrency').value),pages:Number($('pages').value),sort:$('portal-sort').value,minValue:$('min-value').value,maxValue:$('max-value').value,extraMarkers:$('extra-markers').value,telegram:$('telegram-enabled').checked,chatId:$('chat-id').value,desktopToasts:$('toast-enabled').checked};
   if($('token').value.trim())body.token=$('token').value.trim();
   await post('settings',body);$('token').value='';syncSettings();toast('Preferences saved.');
 }));

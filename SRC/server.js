@@ -3,11 +3,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import {
   keywordUrl, DEFAULT_KEYWORDS, normalizeKeywords, validateSettings, diffProducts,
   readClaimableProducts, selectDueKeywords, applyValueRange, experimentalVariants,
-  sortApplied, extractPage, scanKeywordPages, SORT_OPTIONS, MAX_PAGES_PER_KEYWORD, BASE_URL
+  sortApplied, extractPage, scanKeywordPages, SORT_OPTIONS, MAX_PAGES_PER_KEYWORD,
+  BASE_URL, DEFAULT_EXTRA_MARKERS
 } from './monitor-core.js';
+import { detectBrowsers, resolveBrowser, DEFAULT_BROWSER } from './browser-choice.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA = process.env.PULSE_DATA_DIR || path.join(ROOT, '.local', 'product-pulse');
@@ -16,20 +19,28 @@ const CDP_URL = process.env.PULSE_CDP_URL || 'http://127.0.0.1:9222';
 // The reviewer portal that is read. The default is Walmart's own portal; the
 // override exists so the monitor can be pointed at a mirror or a test server.
 const PORTAL = process.env.PULSE_PORTAL_URL || BASE_URL;
+// Which browser to drive. The choice is stored next to the data so the setup
+// script, the dashboard and the command line all agree.
+const BROWSER_FILE = path.join(DATA, 'browser.json');
+// Windows PowerShell writes UTF-8 with a byte order mark. Strip it, otherwise
+// JSON.parse refuses the file and the saved browser choice is ignored.
+const readJsonFile = async file => JSON.parse((await readFile(file, 'utf8')).replace(/^\uFEFF/, ''));
+let browserChoice = { browser: DEFAULT_BROWSER };
+try { browserChoice = { ...browserChoice, ...await readJsonFile(BROWSER_FILE) }; } catch { /* first run */ }
 await mkdir(DATA, { recursive: true, mode: 0o700 });
 let state;
-try { state = JSON.parse(await readFile(path.join(DATA, 'state.json'), 'utf8')); }
+try { state = await readJsonFile(path.join(DATA, 'state.json')); }
 catch (error) {
   if (error.code !== 'ENOENT') throw new Error('Saved state could not be read. Back up .local/product-pulse before repairing state.json.');
   state = {
     keywords: ['', ...DEFAULT_KEYWORDS].map(keyword => ({ id: randomUUID(), keyword, nextDue: 0 })),
-    settings: { minutes: 5, concurrency: 1, pages: 1, sort: 'price_high', minValue: 0, maxValue: 0, telegram: false, chatId: '', desktopToasts: true },
+    settings: { minutes: 5, concurrency: 1, pages: 1, sort: 'price_high', minValue: 0, maxValue: 0, extraMarkers: [...DEFAULT_EXTRA_MARKERS], telegram: false, chatId: '', desktopToasts: true },
     snapshots: {}, live: {}, events: [], profiles: [], telegramToken: ''
   };
 }
 state.live = state.live || {};
 state.profiles = state.profiles || [];
-state.settings = { ...{ minutes: 5, concurrency: 1, pages: 1, sort: 'price_high', minValue: 0, maxValue: 0, telegram: false, chatId: '', desktopToasts: true }, ...(state.settings || {}) };
+state.settings = { ...{ minutes: 5, concurrency: 1, pages: 1, sort: 'price_high', minValue: 0, maxValue: 0, extraMarkers: [...DEFAULT_EXTRA_MARKERS], telegram: false, chatId: '', desktopToasts: true }, ...(state.settings || {}) };
 
 let context = null, loginPage = null, running = false, pauseReason = '', launchPromise = null, runGeneration = 0, revision = 1;
 let browserMode = 'dedicated';
@@ -54,7 +65,9 @@ function publicState() {
     snapshots: state.snapshots, live: state.live, profiles: state.profiles, events: state.events,
     running, pauseReason, browserConnected: !!context, browserMode,
     active: [...active.keys()], held: [...held.keys()], preview: PREVIEW, revision, now: Date.now(),
-    sorts: SORT_OPTIONS, maxPages: MAX_PAGES_PER_KEYWORD, portal: PORTAL
+    sorts: SORT_OPTIONS, maxPages: MAX_PAGES_PER_KEYWORD, portal: PORTAL,
+    browsers: detectBrowsers(), browserChoice: { ...browserChoice, ...resolveBrowser(browserChoice) },
+    extraMarkers: state.settings.extraMarkers
   };
 }
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -67,10 +80,11 @@ async function browser() {
     const { chromium } = await import('playwright');
     if (process.env.PULSE_CDP_URL) return attach(chromium);
     const options = { headless: process.env.PULSE_HEADLESS === '1', viewport: null, acceptDownloads: false };
-    if (process.env.PULSE_BROWSER_PATH) options.executablePath = process.env.PULSE_BROWSER_PATH;
-    else if (process.env.PULSE_BROWSER !== 'chromium') options.channel = process.env.PULSE_BROWSER || 'chrome';
+    const resolved = resolveBrowser(browserChoice);
+    if (resolved.executablePath) options.executablePath = resolved.executablePath;
+    else if (resolved.channel) options.channel = resolved.channel;
     try { context = await chromium.launchPersistentContext(path.join(DATA, 'browser-profile'), options); }
-    catch { throw new Error('Could not open the dedicated browser. Close any previous Product Pulse browser, or install Chrome. To use Playwright Chromium: npx playwright install chromium, then set PULSE_BROWSER=chromium and run npm start.'); }
+    catch { throw new Error('Could not open the chosen browser. Close any previous Product Pulse window, or pick a different browser in Browser setup. To use the bundled Chromium instead: npx playwright install chromium.'); }
     browserMode = 'dedicated';
     context.on('close', () => { context = null; loginPage = null; running = false; runGeneration++; pauseReason = 'Monitoring browser closed. Open it again and sign in, then Start.'; changed(); });
     changed();
@@ -194,7 +208,7 @@ async function scan(keyword, generation) {
   // The plain keyword always comes first. The experimental markers are extra
   // searches for the same keyword, so they only read the first page.
   const queries = [keyword.keyword];
-  if (keyword.experimental && keyword.keyword) queries.push(...experimentalVariants(keyword.keyword));
+  if (keyword.experimental && keyword.keyword) queries.push(...experimentalVariants(keyword.keyword, state.settings.extraMarkers));
   try {
     const ctx = await browser();
     if (!running || generation !== runGeneration) return;
@@ -383,6 +397,13 @@ const server = http.createServer(async (request, response) => {
         await persist();
       } else if (url.pathname === '/api/browser') {
         await openLogin();
+      } else if (url.pathname === '/api/browser-choice') {
+        const id = String(body.browser || '').trim();
+        const known = detectBrowsers().find(item => item.id === id);
+        if (!known) throw new Error('That browser is not one this companion can drive.');
+        browserChoice = { browser: id, executablePath: body.executablePath ? String(body.executablePath) : '' };
+        await writeFile(BROWSER_FILE, JSON.stringify(browserChoice, null, 2), { mode: 0o600 });
+        changed();
       } else if (url.pathname === '/api/attach') {
         await attachToRunningChrome();
       } else if (url.pathname === '/api/claim') {
@@ -467,7 +488,27 @@ const server = http.createServer(async (request, response) => {
   } catch (error) { json(response, 400, { error: error.message }); }
 });
 const PORT = Number(process.env.PORT || 8080);
-server.listen(PORT, process.env.HOST || '127.0.0.1', () => console.log(`Product Pulse ${PREVIEW ? 'SETUP PREVIEW' : 'local companion'}: http://localhost:${PORT}`));
+// Opens the dashboard in the default browser so a double-click on start.bat is
+// all it takes. Set PULSE_OPEN_DASHBOARD=0 to switch that off.
+function openDashboard() {
+  if (PREVIEW || process.env.PULSE_OPEN_DASHBOARD === '0') return;
+  const url = `http://localhost:${PORT}`;
+  const options = { detached: true, stdio: 'ignore' };
+  let child;
+  try {
+    // The arguments are passed without a shell so the URL is never re-quoted.
+    if (process.platform === 'win32') child = spawn('cmd.exe', ['/c', 'start', '', url], options);
+    else if (process.platform === 'darwin') child = spawn('open', [url], options);
+    else child = spawn('xdg-open', [url], options);
+  } catch { return; }
+  // A machine without a browser opener must not take the companion down.
+  child.on('error', () => {});
+  child.unref();
+}
+server.listen(PORT, process.env.HOST || '127.0.0.1', () => {
+  console.log(`Product Pulse ${PREVIEW ? 'SETUP PREVIEW' : 'local companion'}: http://localhost:${PORT}`);
+  openDashboard();
+});
 async function shutdown() {
   running = false; runGeneration++; clearInterval(scheduler);
   await closePool();

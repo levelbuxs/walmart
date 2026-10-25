@@ -105,10 +105,23 @@ closes a browser it did not start.
 
 * **First page by default.** `pages` defaults to `1`. Deeper pages are there when you want them, never in the way.
 * **One keyword at a time, in the order you entered them.** `selectDueKeywords` walks the list in order instead of sorting by due time, so the program behaves like a list you can follow. A keyword that is overdue shows a **red ✕** and a **negative timer** (`-2m 13s`) until the loop reaches it; a keyword that has been read shows a **green ✓** and a countdown.
-* **Extra items (experimental).** A per-keyword **⚗** switch makes the program search `keyword*`, `keyword&` and `keyword"` as well, and keep whatever those searches reveal that the plain keyword did not show. Three extra first-page requests per keyword per cycle — opt-in, per keyword.
-* **Change things while it runs.** The **Watchlist** view is the control box: the keyword list, the active filters, and a start/pause button. Keywords, filters, interval, pages per search, sort, value range and concurrency can all be changed mid-run; the change is used from the next pass, and no baseline is lost. (Previously every edit had to wait for a pause.)
+* **Extra items (experimental).** A per-keyword **⚗** switch makes the program search `keyword&` and `keyword8` as well, and keep whatever those searches reveal that the plain keyword did not show. The markers are **editable** (`Preferences → Extra-item markers`, one to three characters each, up to six), so `*` or `"` can be added back. Extra first-page requests per keyword per cycle — opt-in, per keyword.
+* **Change things while it runs.** The **Watchlist** view is the control box: the keyword list, the active filters, and a start/pause button. Keywords, filters, interval, pages per search, sort, value range, markers and concurrency can all be changed mid-run; the change is used from the next pass, and no baseline is lost. (Previously every edit had to wait for a pause.)
 * **Notifications with the product title and value.** `node-notifier` (an optional dependency) raises a **Windows toast** from the companion — so it arrives with the dashboard closed. Telegram is the second channel. Both carry the product title and its value. If the system notifier is missing, the failure is reported in Activity rather than swallowed.
 * **A "check now" that is not swallowed.** A scan that was already running used to push the timer back over a request made during it. Each keyword now carries a token, and a request made mid-scan is honoured by the following pass.
+
+### The third round: Windows-first delivery, browser choice, a calmer UI
+
+The program had to become something a non-technical Windows user can install without a manual. Three things changed:
+
+* **One-click installation.** `setup.bat` / `setup.ps1` check for Node.js, install the current LTS with `winget` if it is missing, run `npm ci`, find Chrome / Edge / Brave, ask which one to use, write the choice down, and put a desktop shortcut in place. `start.bat` starts the companion and opens the dashboard; `ProductPulse.bat` installs anything missing and then starts. `start.ps1` is a menu (start, install/repair, choose browser, open dashboard, attach to a Chrome you already started, find the data, reset). The full tutorial with every command to copy and paste is **[WINDOWS-SETUP.md](WINDOWS-SETUP.md)**.
+* **The browser is a choice, not an assumption.** `browser-choice.js` holds a small catalog of the browsers the companion can drive, looks for each one in the usual Windows, macOS and Linux places, and turns the stored choice into Playwright launch options. The choice lives in `.local/product-pulse/browser.json` and can be set by the setup script, by the dashboard (**Browser setup → Which browser?**), or by `PULSE_BROWSER` / `PULSE_BROWSER_PATH`. Chrome is the default; Edge, Brave and the bundled Chromium are one click away.
+* **A quieter interface.** Softer surfaces, cards that lift on hover, a calmer sidebar, and a three-step getting-started panel instead of a blank page. The **Browser setup** view gained the browser picker, and **Preferences** gained the extra-marker field.
+
+Two Windows-specific details that are easy to get wrong and are covered by tests:
+
+* Windows PowerShell writes UTF-8 **with a byte order mark**, and `JSON.parse` refuses such a file. `browser.json` is therefore written without a BOM, and the reader strips one if it finds it — otherwise the saved browser choice would be silently ignored on exactly the platform that needs it.
+* The `.bat` and `.ps1` files are stored with **CRLF** line endings (`.gitattributes`), so a ZIP downloaded from GitHub behaves when it is double-clicked.
 
 ### Files that carry the change
 
@@ -121,6 +134,10 @@ closes a browser it did not start.
 | `tests/companion.test.js` | In-order queue, priority check, experimental markers |
 | `tests/scan-pages.test.js` | Browser test: page walk, refresh-in-place, merge, anchors, verification |
 | `tests/server-scan.test.js` | End-to-end: real companion against a local portal fixture — pages merged, live progress cleared, re-check refreshes, claim jump, live filter edits, experimental extra items |
+| `browser-choice.js` | The browser catalog, detection on Windows/macOS/Linux, and the stored choice → launch options |
+| `setup.ps1` / `setup.bat` / `start.ps1` / `start.bat` / `ProductPulse.bat` | The Windows install, launch and menu scripts |
+| `tests/phase3.test.js` | Marker parsing and defaults, variant building, browser catalog, detection and choice resolution |
+| `tests/browser-choice-file.test.js` | A browser choice written with a byte order mark is still read |
 
 ---
 
