@@ -29,8 +29,45 @@ try{
   await page.locator('[data-view="settings"]').click();
   await page.locator('#interval').selectOption('custom');await page.locator('#custom-minutes').fill('7.5');await page.locator('#concurrency').selectOption('2');
   assert(await page.locator('#concurrency-warning').isVisible());
+  await page.locator('#pages').selectOption('3');await page.locator('#portal-sort').selectOption('price_low');await page.locator('#min-value').fill('10');await page.locator('#max-value').fill('900');
   await page.getByRole('button',{name:'Save preferences',exact:true}).click();
   await page.locator('#schedule-summary').filter({hasText:'Every 7.5 minutes · 2 pages at a time'}).waitFor({state:'attached'});
+  await page.locator('#schedule-summary').filter({hasText:'3 pages per search'}).waitFor({state:'attached'});
+  const saved=(await (await fetch(base+'/api/state')).json()).settings;
+  assert.equal(saved.pages,3);assert.equal(saved.sort,'price_low');assert.equal(saved.minValue,10);assert.equal(saved.maxValue,900);
+  // Saved profiles: create one, apply it, then remove it.
+  await page.locator('#edit-keywords').click();
+  await page.locator('#profile-name').fill('Furniture test');
+  await page.locator('#profile-save').click();
+  await page.locator('#profile-list').getByText('Furniture test').waitFor();
+  await page.locator('#profile-list').locator('.profile-item',{hasText:'Furniture test'}).getByRole('button',{name:'Apply'}).click();
+  await page.locator('#keyword-list').getByText('Desk & lamp',{exact:true}).waitFor();
+  await page.locator('#edit-keywords').click();
+  await page.locator('#profile-list').locator('.profile-item',{hasText:'Furniture test'}).getByRole('button',{name:'Delete'}).click();
+  await page.locator('#profile-list').getByText('Furniture test').waitFor({state:'detached'});
+  await page.locator('#close-keywords').click();
+  await page.locator('[data-view="products"]').click();
+  // The watchlist box: ordered keywords, live filters, add and remove.
+  await page.locator('[data-view="watchlist"]').click();
+  await page.locator('#watchlist-items .watch-item').first().waitFor();
+  const ordered=await page.locator('#watchlist-items .watch-name').allInnerTexts();
+  assert(ordered.includes('chair'),'the watchlist shows the keywords');
+  await page.locator('#watch-pages').selectOption('2');
+  await page.locator('#watch-filter-summary').filter({hasText:'2 pages per search'}).waitFor({state:'attached'});
+  await page.locator('#watch-interval').selectOption('15');
+  await page.locator('#watch-filter-summary').filter({hasText:'every 15 minutes'}).waitFor({state:'attached'});
+  await page.locator('#watchlist-add').fill('desk lamp');
+  await page.locator('#watchlist-add-button').click();
+  await page.locator('#watchlist-items').getByText('desk lamp',{exact:true}).waitFor();
+  await page.locator('#watchlist-items .watch-item',{hasText:'desk lamp'}).locator('[data-remove]').click();
+  await page.locator('#watchlist-items').getByText('desk lamp',{exact:true}).waitFor({state:'detached'});
+  // The experimental extra-item search is a per-keyword switch.
+  await page.locator('#watchlist-items .watch-item',{hasText:'chair'}).locator('[data-extra]').click();
+  const afterToggle=(await (await fetch(base+'/api/state')).json()).keywords.find(k=>k.keyword==='chair');
+  assert.equal(afterToggle.experimental,true);
+  await page.locator('#watchlist-items .watch-item',{hasText:'chair'}).locator('[data-extra]').click();
+  const afterToggleOff=(await (await fetch(base+'/api/state')).json()).keywords.find(k=>k.keyword==='chair');
+  assert.equal(afterToggleOff.experimental,false);
   await page.locator('[data-view="products"]').click();
   await page.locator('#start').click();await page.locator('#toast').filter({hasText:'Hosted preview only'}).waitFor();
   await page.setViewportSize({width:390,height:844});
@@ -53,7 +90,7 @@ try{
   await fixture.setContent('<html><body>Prove you are human. Press and hold.</body></html>');assert.equal((await fixture.evaluate(readClaimableProducts)).status,'verification');
   await fixture.setContent('<html><body>No products found</body></html>');assert.equal((await fixture.evaluate(readClaimableProducts)).status,'empty');
   await fixture.setContent('<html><body>Loading…</body></html>');assert.equal((await fixture.evaluate(readClaimableProducts)).status,'unrecognized');
-  console.log('Companion browser checks passed: saved editable lists, custom schedule, concurrency warnings, preview safety, responsive UI, API isolation, screenshot-style extraction, images, value parsing, stock/action exclusions, verification, recognized empty results.');
+  console.log('Companion browser checks passed: saved editable lists, saved profiles, custom schedule, pages per search, sort and value range, watchlist box with live filters, add and remove keywords, experimental extra-item switch, concurrency warnings, preview safety, responsive UI, API isolation, screenshot-style extraction, images, value parsing, stock/action exclusions, verification, recognized empty results.');
 }finally{
   await request('keywords',{keywords:initial.keywords.filter(k=>k.keyword).map(k=>k.keyword),includeAll:initial.keywords.some(k=>!k.keyword)});
   await request('settings',initial.settings);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { keywordUrl, normalizeKeywords, validateSettings, diffProducts, selectDueKeywords } from '../monitor-core.js';
+import { keywordUrl, normalizeKeywords, validateSettings, diffProducts, selectDueKeywords, experimentalVariants } from '../monitor-core.js';
 const p=(id,price)=>({id,price,title:id,url:'https://www.walmart.com/ip/'+id,image:''});
 test('reviewer URLs support encoded keywords and never leave page one',()=>{
   const url=new URL(keywordUrl('power bank'));
@@ -32,9 +32,29 @@ test('unknown values and price-only changes do not invent urgent new products',(
   const known=diffProducts(unknown,[p('a',null),p('b',100)]);assert.equal(known.urgent.length,0);
   const changed=diffProducts(known,[p('a',null),p('b',200)]);assert.equal(changed.added.length,0);assert.equal(changed.high,200);
 });
-test('scheduler picks oldest due keywords, respects concurrency and excludes in-flight scans',()=>{
+test('the queue walks the keywords in the order they were entered',()=>{
   const keywords=[{id:'a',nextDue:30},{id:'b',nextDue:0},{id:'c',nextDue:20},{id:'d',nextDue:200}];
+  // 'a' is due, so it is taken first even though 'b' has been waiting longer.
+  assert.deepEqual(selectDueKeywords(keywords,new Set(),100,1).map(k=>k.id),['a']);
+  assert.deepEqual(selectDueKeywords(keywords,new Set(['a']),100,3).map(k=>k.id),['b','c']);
+  assert.deepEqual(selectDueKeywords(keywords,new Set(['a','b']),100,3).map(k=>k.id),['c']);
+  assert.deepEqual(selectDueKeywords(keywords,new Set(['a','b','c']),100,3),[]);
+});
+test('a keyword flagged for an immediate check is taken first',()=>{
+  const keywords=[{id:'a',nextDue:0},{id:'b',nextDue:0,priority:true}];
   assert.deepEqual(selectDueKeywords(keywords,new Set(),100,1).map(k=>k.id),['b']);
-  assert.deepEqual(selectDueKeywords(keywords,new Set(['b']),100,3).map(k=>k.id),['c','a']);
-  assert.deepEqual(selectDueKeywords(keywords,new Set(['b']),100,1),[]);
+  assert.deepEqual(selectDueKeywords(keywords,new Set(),100,2).map(k=>k.id),['b','a']);
+});
+test('the experimental markers are added to the end of a keyword',()=>{
+  assert.deepEqual(experimentalVariants('chair'),['chair*','chair&','chair"']);
+  assert.deepEqual(experimentalVariants('power bank'),['power bank*','power bank&','power bank"']);
+  assert.deepEqual(experimentalVariants(''),[]);
+  const url=new URL(keywordUrl('chair*'));
+  assert.equal(url.searchParams.get('queryNups'),'chair*');
+  assert.equal(url.searchParams.get('sort'),'price_high');
+  assert.equal(url.searchParams.get('page'),'1');
+  const amp=new URL(keywordUrl('chair&'));
+  assert.equal(amp.searchParams.get('queryNups'),'chair&');
+  const quote=new URL(keywordUrl('chair"'));
+  assert.equal(quote.searchParams.get('queryNups'),'chair"');
 });
